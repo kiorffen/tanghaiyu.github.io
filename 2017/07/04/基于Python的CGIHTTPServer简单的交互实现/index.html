@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 7.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tanghaiyu.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":"valine","storage":true,"lazyload":false,"nav":null,"activeClass":"valine"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="基于Python的CGIHTTPServer简单的交互实现介绍对于服务器后端开发者而言，有时候需要把自己的一些服务直接暴露给PM或者其他RD使用，这个时候需要搭建一套web服务可以和前端用户做简单交互，按照最常规的做法，一般是用Apache或者Nginx作为webserver后端使用cgi或者fcgi程序或者脚本进行处理，当然这种做法安全且正规。 但是我个人更喜欢一个更简单的做法：就是利用pyth">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于Python的CGIHTTPServer简单的交互实现">
+<meta property="og:url" content="http://tanghaiyu.com/2017/07/04/%E5%9F%BA%E4%BA%8EPython%E7%9A%84CGIHTTPServer%E7%AE%80%E5%8D%95%E7%9A%84%E4%BA%A4%E4%BA%92%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="Tang Haiyu Blog">
+<meta property="og:description" content="基于Python的CGIHTTPServer简单的交互实现介绍对于服务器后端开发者而言，有时候需要把自己的一些服务直接暴露给PM或者其他RD使用，这个时候需要搭建一套web服务可以和前端用户做简单交互，按照最常规的做法，一般是用Apache或者Nginx作为webserver后端使用cgi或者fcgi程序或者脚本进行处理，当然这种做法安全且正规。 但是我个人更喜欢一个更简单的做法：就是利用pyth">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://cdn.tanghaiyu.com/python-cgi.jpg">
+<meta property="article:published_time" content="2017-07-04T05:06:41.000Z">
+<meta property="article:modified_time" content="2025-02-16T12:05:26.337Z">
+<meta property="article:author" content="Kiorffen">
+<meta property="article:tag" content="python">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://cdn.tanghaiyu.com/python-cgi.jpg">
+
+<link rel="canonical" href="http://tanghaiyu.com/2017/07/04/%E5%9F%BA%E4%BA%8EPython%E7%9A%84CGIHTTPServer%E7%AE%80%E5%8D%95%E7%9A%84%E4%BA%A4%E4%BA%92%E5%AE%9E%E7%8E%B0/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>基于Python的CGIHTTPServer简单的交互实现 | Tang Haiyu Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Tang Haiyu Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-csdn">
+
+    <a href="http://blog.csdn.net/tanghaiyu777" rel="noopener" target="_blank"><i class="fa fa-user fa-fw"></i>csdn</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://tanghaiyu.com/2017/07/04/%E5%9F%BA%E4%BA%8EPython%E7%9A%84CGIHTTPServer%E7%AE%80%E5%8D%95%E7%9A%84%E4%BA%A4%E4%BA%92%E5%AE%9E%E7%8E%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="http://cdn.tanghaiyu.com/touxiang.jpeg">
+      <meta itemprop="name" content="Author">
+      <meta itemprop="description" content="高山仰止，景行行止；虽不能至，心向往之。">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tang Haiyu Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          基于Python的CGIHTTPServer简单的交互实现
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2017-07-04 13:06:41" itemprop="dateCreated datePublished" datetime="2017-07-04T13:06:41+08:00">2017-07-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-02-16 20:05:26" itemprop="dateModified" datetime="2025-02-16T20:05:26+08:00">2025-02-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/python/" itemprop="url" rel="index"><span itemprop="name">python</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2017/07/04/%E5%9F%BA%E4%BA%8EPython%E7%9A%84CGIHTTPServer%E7%AE%80%E5%8D%95%E7%9A%84%E4%BA%A4%E4%BA%92%E5%AE%9E%E7%8E%B0/" class="post-meta-item leancloud_visitors" data-flag-title="基于Python的CGIHTTPServer简单的交互实现" title="Views">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">Views: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2017/07/04/%E5%9F%BA%E4%BA%8EPython%E7%9A%84CGIHTTPServer%E7%AE%80%E5%8D%95%E7%9A%84%E4%BA%A4%E4%BA%92%E5%AE%9E%E7%8E%B0/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2017/07/04/%E5%9F%BA%E4%BA%8EPython%E7%9A%84CGIHTTPServer%E7%AE%80%E5%8D%95%E7%9A%84%E4%BA%A4%E4%BA%92%E5%AE%9E%E7%8E%B0/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="基于Python的CGIHTTPServer简单的交互实现"><a href="#基于Python的CGIHTTPServer简单的交互实现" class="headerlink" title="基于Python的CGIHTTPServer简单的交互实现"></a>基于Python的CGIHTTPServer简单的交互实现</h1><h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>对于服务器后端开发者而言，有时候需要把自己的一些服务直接暴露给PM或者其他RD使用，这个时候需要搭建一套web服务可以和前端用户做简单交互，按照最常规的做法，一般是用Apache或者Nginx作为webserver后端使用cgi或者fcgi程序或者脚本进行处理，当然这种做法安全且正规。</p>
+<p>但是我个人更喜欢一个更简单的做法：就是利用python自带的CGIHTTPServer作为服务器，然后通过一个简单的html页面进行交互，通过post请求直接调用总控脚本，与用户进行交互。</p>
+<p><img src="http://cdn.tanghaiyu.com/python-cgi.jpg" alt="http:&#x2F;&#x2F;cdn.tanghaiyu.com&#x2F;python-cgi.jpg"></p>
+<span id="more"></span>
+
+<h2 id="使用方法和示例"><a href="#使用方法和示例" class="headerlink" title="使用方法和示例"></a>使用方法和示例</h2><h3 id="启动服务"><a href="#启动服务" class="headerlink" title="启动服务"></a>启动服务</h3><p>Python的CGIHTTPServer一般是与python一起安装的，使用如下命令既可以启动，为了便于组织目录，建议先建立一个目录，比如web，然后再运行下面的命令。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nohup python -m CGIHTTPServer 8088 &amp;</span><br></pre></td></tr></table></figure>
+<p>上面的命令使CGIHTTPServer在非中断后台运行，运行log可以通过当前目录下的nohup.out查看。</p>
+<h3 id="编写交互页面"><a href="#编写交互页面" class="headerlink" title="编写交互页面"></a>编写交互页面</h3><p>在启动server的当前目录下，建立一个index.html文件，编写内容如下。</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">html</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">&quot;Content-Type&quot;</span> <span class="attr">content</span>=<span class="string">&quot;text/html; charset=gbk&quot;</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">title</span>&gt;</span> Python-CGIHTTPServer使用示例 <span class="tag">&lt;/<span class="name">title</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">&quot;author&quot;</span> <span class="attr">content</span>=<span class="string">&quot;Haiyu&quot;</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">center</span>&gt;</span><span class="tag">&lt;<span class="name">h1</span>&gt;</span> Python-CGIHTTPServer使用示例 <span class="tag">&lt;/<span class="name">h1</span>&gt;</span><span class="tag">&lt;/<span class="name">center</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;<span class="name">hr</span> <span class="attr">style</span>=<span class="string">&quot;height:5px;border:none;border-top:5px ridge green;&quot;</span> /&gt;</span></span><br><span class="line">   <span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">br</span>/&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">center</span>&gt;</span><span class="tag">&lt;<span class="name">h2</span>&gt;</span>计算圆的周长<span class="tag">&lt;/<span class="name">h2</span>&gt;</span><span class="tag">&lt;/<span class="name">center</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">center</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">p</span>&gt;</span>请输入圆的半径长度.<span class="tag">&lt;/<span class="name">p</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">br</span>/&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">form</span> <span class="attr">action</span>=<span class="string">&quot;cgi-bin/c_length.sh&quot;</span> <span class="attr">method</span>=<span class="string">&quot;post&quot;</span> <span class="attr">enctype</span>=<span class="string">&quot;text/plain&quot;</span> <span class="attr">target</span>=<span class="string">&quot;_blank&quot;</span>&gt;</span></span><br><span class="line">           radius:<span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;text&quot;</span> <span class="attr">id</span>=<span class="string">&quot;radius&quot;</span> <span class="attr">name</span>=<span class="string">&quot;radius&quot;</span> <span class="attr">value</span>=<span class="string">&quot;&quot;</span>/&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;submit&quot;</span> <span class="attr">id</span>=<span class="string">&quot;c_length&quot;</span> <span class="attr">name</span>=<span class="string">&quot;c_length&quot;</span> <span class="attr">value</span>=<span class="string">&quot;计算周长&quot;</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;/<span class="name">form</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;/<span class="name">center</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">br</span>/&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">br</span>/&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">br</span>/&gt;</span></span><br><span class="line">   <span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;<span class="name">hr</span> <span class="attr">style</span>=<span class="string">&quot;height:5px;border:none;border-top:5px ridge green;&quot;</span> /&gt;</span></span><br><span class="line">   <span class="tag">&lt;<span class="name">br</span>/&gt;</span></span><br><span class="line">   <span class="tag">&lt;<span class="name">br</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>这个界面的功能非常简单，使用一个form表单接收用户的提交的半径参数，然后计算完周长之后进行返回，使用post请求。</p>
+<h3 id="CGI脚本"><a href="#CGI脚本" class="headerlink" title="CGI脚本"></a>CGI脚本</h3><p>这个才是我们后端开发同学最关心的内容，这个脚本就是用来完成主要的逻辑操作进行返回，因为我们后端同学关注更多的不是交互界面的华丽而是逻辑处理的正确性和严谨性，根据我的经验，后端不管多么复杂的处理流程，最终都可以用一个脚本包起来，根据输入得到输出，这里面的输入就是我们用户提交的参数，输出就是我们经过层层处理之后需要返回的内容。<br>这个脚本建议放在server运行目录下新建立的cgi-bin目录中。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/bash</span></span><br><span class="line"></span><br><span class="line">mysql_bin=/home/work/mysql/bin/mysql</span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;Content-Type:text/html; Charset=gbk&quot;</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;&lt;br/&gt;&quot;</span></span><br><span class="line">radius=0</span><br><span class="line">c_length=0</span><br><span class="line"><span class="keyword">if</span> [[ <span class="string">&quot;<span class="variable">$REQUEST_METHOD</span>&quot;</span> == <span class="string">&quot;POST&quot;</span> ]];<span class="keyword">then</span></span><br><span class="line">    <span class="built_in">read</span> vars</span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;<span class="variable">$vars</span>&quot;</span> | awk -F <span class="string">&quot;=&quot;</span> <span class="string">&#x27;&#123;print $2&#125;&#x27;</span> &gt; temp</span><br><span class="line">    dos2unix temp</span><br><span class="line">    radius=`<span class="built_in">cat</span> temp`</span><br><span class="line">    c_length=$(<span class="built_in">echo</span> <span class="string">&quot;scale=2;2*3.14*<span class="variable">$radius</span>&quot;</span> | bc)</span><br><span class="line"></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;br/&gt;&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;table border=&quot;</span>5<span class="string">&quot; cellpadding=&quot;</span>10<span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;Userid Info:&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;tr&gt;&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;td&gt;半径&lt;/td&gt;&lt;td&gt;周长&lt;/td&gt;&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;/tr&gt;&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;tr&gt;&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;td&gt;&quot;</span><span class="variable">$radius</span><span class="string">&quot;&lt;/td&gt;&lt;td&gt;&quot;</span><span class="variable">$c_length</span><span class="string">&quot;&lt;/td&gt;&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;/tr&gt;&quot;</span></span><br><span class="line">    <span class="built_in">echo</span> <span class="string">&quot;&lt;/table&gt;&quot;</span></span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>以上就是使用Python的CGIHTTPServer进行用户交互的主要内容，其优点就是开发使用方便，让后端同学能更加专注于业务逻辑处理相关的内容。不足之处可能就是不够正规，使用有风险，因为使用的是纯CGI协议交互，记得之前排查过一个bash的cgi漏洞，使用起来可能会有风险，因此这种方式更适合开发一套对内使用的简易工具，不建议对外部用户暴露。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/python/" rel="tag"># python</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2017/06/30/Python%E6%AD%A3%E5%88%99%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B/" rel="prev" title="Python正则使用示例">
+      <i class="fa fa-chevron-left"></i> Python正则使用示例
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2017/11/03/%E9%98%BF%E9%87%8C%E4%BA%91%E6%9C%BA%E5%99%A8%E5%AE%89%E8%A3%85Tensorflow%E5%92%8CPaddlepaddle/" rel="next" title="阿里云机器安装Tensorflow和Paddlepaddle">
+      阿里云机器安装Tensorflow和Paddlepaddle <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8EPython%E7%9A%84CGIHTTPServer%E7%AE%80%E5%8D%95%E7%9A%84%E4%BA%A4%E4%BA%92%E5%AE%9E%E7%8E%B0"><span class="nav-number">1.</span> <span class="nav-text">基于Python的CGIHTTPServer简单的交互实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%8B%E7%BB%8D"><span class="nav-number">1.1.</span> <span class="nav-text">介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95%E5%92%8C%E7%A4%BA%E4%BE%8B"><span class="nav-number">1.2.</span> <span class="nav-text">使用方法和示例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8%E6%9C%8D%E5%8A%A1"><span class="nav-number">1.2.1.</span> <span class="nav-text">启动服务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BC%96%E5%86%99%E4%BA%A4%E4%BA%92%E9%A1%B5%E9%9D%A2"><span class="nav-number">1.2.2.</span> <span class="nav-text">编写交互页面</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CGI%E8%84%9A%E6%9C%AC"><span class="nav-number">1.2.3.</span> <span class="nav-text">CGI脚本</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">1.3.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Author"
+      src="http://cdn.tanghaiyu.com/touxiang.jpeg">
+  <p class="site-author-name" itemprop="name">Author</p>
+  <div class="site-description" itemprop="description">高山仰止，景行行止；虽不能至，心向往之。</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">18</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/kiorffen" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;kiorffen" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:tanghaiyu@163.com" title="E-Mail → mailto:tanghaiyu@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Author</span>
+  <a href="https://beian.miit.gov.cn/" target="_blank">沪ICP备2024100829号-2</a>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              Counter('post', '/classes/Counter', { title, url, time: 1 })
+                .then(response => response.json())
+                .then(() => {
+                  leancloudSelector(url).innerText = 1;
+                })
+                .catch(error => {
+                  console.error('Failed to create', error);
+                });
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"9UgC9mS8oA82Nv8hjVeiPVp8-9Nh9j0Va","app_key":"59dLLM9hNl8myEW01m1btqOC","server_url":null,"security":false};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'fe2uk4oLO3axMVCLgCoTz91T-9Nh9j0Va',
+      appKey     : 'qWiFQ0nk19r1n5QRnd4ke7Cq',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : true,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
